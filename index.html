@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Despesas QR</title>
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Despesas QR">
+<meta name="theme-color" content="#0e0e0f">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Bricolage+Grotesque:wght@300;400;500;600&display=swap');
+:root{--bg:#0e0e0f;--surface:#17171a;--surface2:#1f1f24;--border:#2a2a32;--accent:#e8d5a3;--accent2:#c4a96b;--red:#e05a5a;--green:#5abf8a;--text:#f0ede8;--muted:#7a7880;--subtle:#3a3840}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Bricolage Grotesque',system-ui,sans-serif;min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 0%,rgba(200,169,107,.07) 0%,transparent 60%),radial-gradient(ellipse at 80% 100%,rgba(90,95,191,.05) 0%,transparent 50%);pointer-events:none;z-index:0}
+.app{position:relative;z-index:1;max-width:860px;margin:0 auto;padding:32px 20px 80px}
+header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:40px;padding-bottom:20px;border-bottom:1px solid var(--border)}
+.logo-block h1{font-family:'DM Serif Display',Georgia,serif;font-size:2.2rem;color:var(--accent);line-height:1}
+.logo-block h1 em{font-style:italic;color:var(--text)}
+.logo-block p{color:var(--muted);font-size:.75rem;margin-top:6px;letter-spacing:.08em;text-transform:uppercase}
+.month-nav{display:flex;align-items:center;gap:10px}
+.month-nav button{background:var(--surface2);border:1px solid var(--border);color:var(--muted);width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.month-nav button:hover{border-color:var(--accent2);color:var(--accent)}
+.month-label{font-family:'DM Mono',monospace;font-size:.82rem;color:var(--text);min-width:95px;text-align:center}
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:28px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px}
+.stat-card .label{font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px}
+.stat-card .value{font-family:'DM Serif Display',Georgia,serif;font-size:1.6rem;color:var(--text);line-height:1}
+.stat-card .value span{font-size:.85rem;color:var(--muted)}
+.stat-card.highlight{border-color:var(--accent2)}.stat-card.highlight .value{color:var(--accent)}
+.scan-section{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:24px}
+.scan-section>h2{font-size:.68rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:18px}
+.scan-modes{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
+.mode-btn{flex:1;padding:9px 6px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;font-family:inherit;font-size:.78rem;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px;min-width:64px}
+.mode-btn.active{background:var(--surface);border-color:var(--accent2);color:var(--accent)}
+.scan-panel{display:none}.scan-panel.active{display:block}
+
+/* Camera */
+#cam-wrap{position:relative;width:100%;background:#000;border-radius:10px;overflow:hidden;min-height:260px;display:flex;align-items:center;justify-content:center}
+#cam-video{width:100%;display:none;border-radius:10px}
+.cam-placeholder{display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--muted);font-size:.82rem;padding:40px}
+.cam-placeholder .icon{font-size:2.5rem}
+.cam-overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;pointer-events:none}
+.cam-overlay.show{display:flex}
+.cam-box{width:220px;height:220px;position:relative}
+.cam-box::before,.cam-box::after,.cam-box span::before,.cam-box span::after{content:'';position:absolute;width:22px;height:22px;border-color:var(--accent);border-style:solid;opacity:.9}
+.cam-box::before{top:0;left:0;border-width:3px 0 0 3px}
+.cam-box::after{top:0;right:0;border-width:3px 3px 0 0}
+.cam-box span::before{bottom:0;left:0;border-width:0 0 3px 3px}
+.cam-box span::after{bottom:0;right:0;border-width:0 3px 3px 0}
+.scan-line{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:scanMove 2s ease-in-out infinite}
+@keyframes scanMove{0%{top:0;opacity:1}50%{top:calc(100% - 2px);opacity:.4}100%{top:0;opacity:1}}
+.cam-btn{margin-top:12px;width:100%;padding:11px;background:var(--accent2);color:var(--bg);border:none;border-radius:8px;font-family:inherit;font-size:.88rem;font-weight:600;cursor:pointer;transition:background .15s}
+.cam-btn:hover{background:var(--accent)}
+.cam-hint{text-align:center;color:var(--muted);font-size:.73rem;margin-top:8px;line-height:1.5}
+
+/* Forms */
+.manual-form{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.manual-form .full{grid-column:1/-1}
+.form-group label{display:block;font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:5px}
+.form-group input,.form-group select,.form-group textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 11px;color:var(--text);font-family:inherit;font-size:.88rem;outline:none;transition:border-color .15s}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--accent2)}
+.form-group select option{background:var(--surface2)}
+.form-group textarea{resize:vertical;font-family:'DM Mono',monospace;font-size:.75rem;line-height:1.5;min-height:80px}
+.submit-btn{grid-column:1/-1;padding:11px;background:var(--accent2);color:var(--bg);border:none;border-radius:8px;font-family:inherit;font-size:.88rem;font-weight:600;cursor:pointer;margin-top:2px;transition:background .15s}
+.submit-btn:hover{background:var(--accent)}
+
+/* Parsed preview */
+.parsed-preview{background:var(--surface2);border:1px solid var(--accent2);border-radius:10px;padding:14px;margin-top:12px;display:none}
+.parsed-preview.show{display:block}
+.parsed-preview h3{font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:var(--accent2);margin-bottom:10px}
+.parsed-preview .fields{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.parsed-preview .field .k{font-size:.68rem;color:var(--muted)}
+.parsed-preview .field .v{font-family:'DM Mono',monospace;font-size:.8rem;color:var(--text)}
+.parsed-actions{display:flex;gap:8px;margin-top:12px}
+.parsed-actions button{flex:1;padding:9px;border-radius:7px;border:1px solid;font-family:inherit;font-size:.8rem;cursor:pointer;transition:all .15s}
+.btn-ok{background:var(--accent2);border-color:var(--accent2)!important;color:var(--bg);font-weight:600}
+.btn-cancel-p{background:transparent;border-color:var(--border)!important;color:var(--muted)}
+.btn-cancel-p:hover{border-color:var(--red)!important;color:var(--red)}
+
+/* Expenses */
+.expenses-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+.expenses-header h2{font-size:.68rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
+.hdr-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.export-btn{padding:4px 11px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-family:inherit;font-size:.72rem;cursor:pointer;transition:all .15s}
+.export-btn:hover{border-color:var(--accent2);color:var(--accent)}
+.filter-row{display:flex;gap:6px;flex-wrap:wrap}
+.filter-chip{padding:3px 10px;border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:inherit;font-size:.72rem;cursor:pointer;transition:all .15s}
+.filter-chip.active{border-color:var(--accent2);color:var(--accent);background:rgba(200,169,107,.06)}
+.expense-list{display:flex;flex-direction:column;gap:7px}
+.expense-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px;animation:fadeSlide .25s ease}
+@keyframes fadeSlide{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:translateX(0)}}
+.expense-cat{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.05rem;flex-shrink:0}
+.expense-info{flex:1;min-width:0}
+.expense-info .name{font-size:.88rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.expense-info .meta{font-size:.72rem;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px}
+.expense-right{text-align:right;flex-shrink:0}
+.expense-right .amount{font-family:'DM Serif Display',Georgia,serif;font-size:1.05rem;color:var(--text)}
+.expense-right .iva{font-size:.68rem;color:var(--muted);font-family:'DM Mono',monospace}
+.del-btn{background:none;border:none;color:var(--subtle);cursor:pointer;font-size:.95rem;padding:4px;transition:color .15s;flex-shrink:0}
+.del-btn:hover{color:var(--red)}
+.empty-state{text-align:center;padding:50px 0;color:var(--muted)}
+.empty-state .icon{font-size:2.8rem;margin-bottom:14px}
+.empty-state p{font-size:.82rem;line-height:1.7}
+
+/* Breakdown */
+.breakdown-section{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:24px;display:none}
+.breakdown-section.show{display:block}
+.breakdown-section h2{font-size:.68rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:14px}
+.bd-bars{display:flex;flex-direction:column;gap:9px}
+.bd-bar-hdr{display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:4px}
+.bd-bar-hdr .cn{color:var(--text)}.bd-bar-hdr .ca{font-family:'DM Mono',monospace;color:var(--muted)}
+.bar-track{background:var(--surface2);border-radius:999px;height:5px;overflow:hidden}
+.bar-fill{height:100%;border-radius:999px;transition:width .5s cubic-bezier(.34,1.56,.64,1)}
+
+/* Toast */
+.toast{position:fixed;top:20px;right:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 18px;display:flex;align-items:center;gap:10px;box-shadow:0 8px 32px rgba(0,0,0,.4);transform:translateX(120%);transition:transform .3s cubic-bezier(.34,1.56,.64,1);z-index:999;max-width:300px}
+.toast.show{transform:translateX(0)}.toast.success{border-color:var(--green)}.toast.error{border-color:var(--red)}
+.toast-icon{font-size:1.1rem}.toast-text{font-size:.82rem;line-height:1.4}
+.toast-text strong{display:block;color:var(--text)}.toast-text span{color:var(--muted)}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);z-index:100;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.show{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:400px;width:100%;animation:popIn .25s cubic-bezier(.34,1.56,.64,1)}
+@keyframes popIn{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
+.modal h3{font-family:'DM Serif Display',Georgia,serif;font-size:1.3rem;margin-bottom:4px}
+.modal-sub{color:var(--muted);font-size:.8rem;margin-bottom:18px}
+.modal-btns{display:flex;flex-direction:column;gap:7px}
+.modal-btns button{padding:11px;border-radius:8px;font-family:inherit;font-size:.88rem;cursor:pointer;transition:all .15s}
+
+/* Offline banner */
+#offline-banner{display:none;position:fixed;top:0;left:0;right:0;z-index:500;background:#e8a45a;color:#000;text-align:center;padding:8px;font-size:.8rem;font-weight:600}
+
+#canvas{display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:520px){
+  .stats-row{grid-template-columns:1fr 1fr}.stats-row .stat-card:last-child{grid-column:1/-1}
+  .manual-form{grid-template-columns:1fr}.manual-form .full{grid-column:1}
+}
+</style>
+</head>
+<body>
+
+<div id="offline-banner">📵 Sem ligação à internet — a funcionar offline</div>
+
+<div class="app">
+  <header>
+    <div class="logo-block">
+      <h1>Des<em>pesas</em></h1>
+      <p>QR · Faturas PT</p>
+    </div>
+    <div class="month-nav">
+      <button id="prev-month">&#8592;</button>
+      <span class="month-label" id="month-label"></span>
+      <button id="next-month">&#8594;</button>
+    </div>
+  </header>
+
+  <div class="stats-row">
+    <div class="stat-card highlight">
+      <div class="label">Total mês</div>
+      <div class="value" id="stat-total">0,00 <span>€</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Faturas</div>
+      <div class="value" id="stat-count">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">IVA pago</div>
+      <div class="value" id="stat-iva">0,00 <span>€</span></div>
+    </div>
+  </div>
+
+  <div class="scan-section">
+    <h2>📎 Nova Despesa</h2>
+    <div class="scan-modes">
+      <button class="mode-btn active" data-mode="camera" onclick="setMode('camera')">📷 Câmara</button>
+      <button class="mode-btn" data-mode="paste" onclick="setMode('paste')">📋 Colar QR</button>
+      <button class="mode-btn" data-mode="manual" onclick="setMode('manual')">✏️ Manual</button>
+    </div>
+
+    <!-- Câmara -->
+    <div class="scan-panel active" id="panel-camera">
+      <div id="cam-wrap">
+        <div class="cam-placeholder" id="cam-ph"><div class="icon">📷</div><p>Aponte para o QR da fatura</p></div>
+        <video id="cam-video" autoplay playsinline muted></video>
+        <div class="cam-overlay" id="cam-overlay"><div class="cam-box"><span></span><div class="scan-line"></div></div></div>
+      </div>
+      <button class="cam-btn" id="cam-btn" onclick="startCamera()">📷 Iniciar câmara</button>
+      <div class="cam-hint" id="cam-hint" style="display:none">Coloca o QR dentro da caixa · Toca no ecrã para focar</div>
+      <canvas id="canvas"></canvas>
+    </div>
+
+    <!-- Colar QR -->
+    <div class="scan-panel" id="panel-paste">
+      <div style="margin-bottom:10px;color:var(--muted);font-size:.8rem;line-height:1.6">
+        Usa o leitor QR nativo do telemóvel, copia o texto e cola aqui:
+      </div>
+      <div class="form-group">
+        <textarea id="paste-qr-text" placeholder="A:503123226*B:199529493*C:PT*D:FR*E:N*F:20260324*..."></textarea>
+      </div>
+      <button class="submit-btn full" style="margin-top:8px" onclick="processPasted()">Processar QR colado</button>
+    </div>
+
+    <!-- Manual -->
+    <div class="scan-panel" id="panel-manual">
+      <div class="manual-form">
+        <div class="form-group full"><label>Fornecedor / Loja</label><input type="text" id="m-name" placeholder="ex: Continente"></div>
+        <div class="form-group"><label>Total (€)</label><input type="number" id="m-total" step="0.01" placeholder="0,00"></div>
+        <div class="form-group"><label>IVA (€)</label><input type="number" id="m-iva" step="0.01" placeholder="0,00"></div>
+        <div class="form-group"><label>Data</label><input type="date" id="m-date"></div>
+        <div class="form-group">
+          <label>Categoria</label>
+          <select id="m-cat" onchange="toggleOutro('m-outro',this.value)">
+            <option>🛒 Alimentação</option><option>🍽 Restauração</option><option>🚇 Transportes</option>
+            <option>💊 Saúde</option><option>👕 Vestuário</option><option>🏠 Casa</option>
+            <option>🎮 Lazer</option><option>⛽ Combustível</option><option>📋 Serviços</option>
+            <option>📦 Outro</option>
+          </select>
+        </div>
+        <div class="form-group full" id="m-outro-wrap" style="display:none"><label>Descrição do Outro</label><input type="text" id="m-outro" placeholder="ex: Veterinário, Ginásio..."></div>
+        <div class="form-group full"><label>NIF Emitente</label><input type="text" id="m-nif" placeholder="ex: 500123456" maxlength="9"></div>
+        <button class="submit-btn" onclick="addManual()">+ Adicionar Despesa</button>
+      </div>
+    </div>
+
+    <!-- Preview QR -->
+    <div class="parsed-preview" id="parsed-preview">
+      <h3>✅ QR Lido — Confirmar</h3>
+      <div class="fields" id="parsed-fields"></div>
+      <div class="form-group" style="margin-top:10px">
+        <label>Categoria</label>
+        <select id="p-cat" onchange="toggleOutro('p-outro',this.value)">
+          <option>🛒 Alimentação</option><option>🍽 Restauração</option><option>🚇 Transportes</option>
+          <option>💊 Saúde</option><option>👕 Vestuário</option><option>🏠 Casa</option>
+          <option>🎮 Lazer</option><option>⛽ Combustível</option><option>📋 Serviços</option>
+          <option>📦 Outro</option>
+        </select>
+      </div>
+      <div class="form-group" id="p-outro-wrap" style="display:none;margin-top:7px">
+        <label>Descrição do Outro</label>
+        <input type="text" id="p-outro" placeholder="ex: Veterinário..." style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 11px;color:var(--text);font-family:inherit;font-size:.88rem;outline:none" onfocus="this.style.borderColor='var(--accent2)'" onblur="this.style.borderColor='var(--border)'">
+      </div>
+      <div class="parsed-actions">
+        <button class="btn-ok" onclick="confirmExpense()">Guardar despesa</button>
+        <button class="btn-cancel-p" onclick="cancelParsed()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="breakdown-section" id="breakdown-section">
+    <h2>📊 Por categoria</h2>
+    <div class="bd-bars" id="bd-bars"></div>
+  </div>
+
+  <div>
+    <div class="expenses-header">
+      <h2>📄 Faturas registadas</h2>
+      <div class="hdr-right">
+        <button class="export-btn" onclick="openExport()">⬇ Exportar</button>
+        <div class="filter-row" id="filter-row"><button class="filter-chip active" onclick="setFilter('all')">Todas</button></div>
+      </div>
+    </div>
+    <div class="expense-list" id="expense-list"></div>
+  </div>
+</div>
+
+<!-- Modal exportar -->
+<div class="modal-overlay" id="export-modal">
+  <div class="modal">
+    <h3>⬇ Exportar</h3>
+    <p class="modal-sub">Escolhe o formato e período</p>
+    <div class="form-group" style="margin-bottom:16px">
+      <label>Período</label>
+      <select id="exp-period" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 11px;color:var(--text);font-family:inherit;font-size:.88rem;outline:none">
+        <option value="month">Mês atual</option>
+        <option value="year">Ano atual</option>
+        <option value="all">Todas as despesas</option>
+      </select>
+    </div>
+    <div class="modal-btns">
+      <button onclick="doExport('csv')" style="background:var(--accent2);color:var(--bg);border:none;font-weight:600">📊 CSV (Excel / Sheets)</button>
+      <button onclick="doExport('json')" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)">{ } JSON (backup completo)</button>
+      <button onclick="closeExport()" style="background:transparent;color:var(--muted);border:none">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">
+  <span class="toast-icon" id="toast-icon"></span>
+  <div class="toast-text"><strong id="toast-title"></strong><span id="toast-sub"></span></div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════════════
+// IndexedDB
+// ══════════════════════════════════════════════════════════════════════════════
+const IDB = (() => {
+  const DB = 'despesas-qr', VER = 1, ST = 'despesas';
+  let db;
+  const open = () => new Promise((res,rej) => {
+    const r = indexedDB.open(DB, VER);
+    r.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains(ST)) {
+        const s = d.createObjectStore(ST, {keyPath:'id'});
+        s.createIndex('date','date',{unique:false});
+        s.createIndex('category','category',{unique:false});
+      }
+    };
+    r.onsuccess = e => { db = e.target.result; res(db); };
+    r.onerror = () => rej(r.error);
+  });
+  const tx = (mode) => db.transaction(ST, mode).objectStore(ST);
+  const all  = () => new Promise((res,rej) => { const r=tx('readonly').index('date').getAll(); r.onsuccess=()=>res(r.result.reverse()); r.onerror=()=>rej(r.error); });
+  const add  = (e) => new Promise((res,rej) => { const r=tx('readwrite').add(e); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
+  const del  = (id) => new Promise((res,rej) => { const r=tx('readwrite').delete(id); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
+  return { open, all, add, del };
+})();
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Estado
+// ══════════════════════════════════════════════════════════════════════════════
+let expenses=[], currentParsed=null, scanning=false, currentFilter='all';
+let currentMonth=new Date().getMonth(), currentYear=new Date().getFullYear();
+
+const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const COLORS={'Alimentação':'#5abf8a','Restauração':'#e8a45a','Transportes':'#6a9fd8','Saúde':'#e05a5a','Vestuário':'#b06ad8','Casa':'#e8d5a3','Lazer':'#5abfbf','Combustível':'#d88a6a','Serviços':'#9abf5a','Outro':'#7a7880'};
+const EMOJI={'Alimentação':'🛒','Restauração':'🍽','Transportes':'🚇','Saúde':'💊','Vestuário':'👕','Casa':'🏠','Lazer':'🎮','Combustível':'⛽','Serviços':'📋','Outro':'📦'};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// QR Parser (formato AT Portugal)
+// ══════════════════════════════════════════════════════════════════════════════
+function parseQR(raw) {
+  const f={};
+  raw.split('*').forEach(p=>{const i=p.indexOf(':');if(i>0)f[p.slice(0,i)]=p.slice(i+1);});
+  if (!f['A'] && !f['O']) return null;
+  const dr=f['F']||'';
+  const date=dr.length===8?`${dr.slice(0,4)}-${dr.slice(4,6)}-${dr.slice(6,8)}`:new Date().toISOString().split('T')[0];
+  const total=parseFloat(f['O']||'0');
+  const iva  =parseFloat(f['N']||f['I8']||'0');
+  return { nif:f['A']||'', date, total:isNaN(total)?0:total, iva:isNaN(iva)?0:iva, docType:f['D']||'', atcud:f['H']||'', raw, name:f['A']?`NIF ${f['A']}`:'Desconhecido' };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Câmara — BarcodeDetector nativo (Android/Chrome) + fallback manual
+// ══════════════════════════════════════════════════════════════════════════════
+let camStream=null, scanTimer=null;
+
+async function startCamera() {
+  const btn=document.getElementById('cam-btn');
+  btn.textContent='⏳ A iniciar...'; btn.disabled=true;
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}
+    });
+    const track=camStream.getVideoTracks()[0];
+    try{await track.applyConstraints({advanced:[{focusMode:'continuous'}]});}catch(e){}
+
+    const video=document.getElementById('cam-video');
+    video.srcObject=camStream; video.style.display='block';
+    document.getElementById('cam-ph').style.display='none';
+    document.getElementById('cam-overlay').classList.add('show');
+    document.getElementById('cam-hint').style.display='block';
+
+    // Tap to focus
+    video.onclick=async(e)=>{
+      const rect=video.getBoundingClientRect();
+      const x=(e.clientX-rect.left)/rect.width, y=(e.clientY-rect.top)/rect.height;
+      try{await track.applyConstraints({advanced:[{focusMode:'manual',pointsOfInterest:[{x,y}]}]});
+        setTimeout(()=>track.applyConstraints({advanced:[{focusMode:'continuous'}]}).catch(()=>{}),1500);}catch(e){}
+    };
+
+    btn.textContent='⏹ Parar câmara'; btn.disabled=false; btn.onclick=stopCamera;
+    scanning=true;
+
+    if (typeof BarcodeDetector!=='undefined') {
+      // Motor nativo Android — igual ao leitor QR do sistema
+      const det=new BarcodeDetector({formats:['qr_code']});
+      scanTimer=setInterval(async()=>{
+        if(!camStream||video.readyState<2)return;
+        try{const b=await det.detect(video);if(b.length)handleQRResult(b[0].rawValue);}catch(e){}
+      },250);
+    } else {
+      // Fallback: canvas + análise manual
+      const canvas=document.getElementById('canvas');
+      scanTimer=setInterval(()=>{
+        if(!camStream||video.readyState<2)return;
+        canvas.width=video.videoWidth; canvas.height=video.videoHeight;
+        canvas.getContext('2d').drawImage(video,0,0);
+        // Sem jsQR disponível — avisa o utilizador para usar Colar QR
+      },500);
+      showToast('info','Leitor nativo indisponível','Usa o modo 📋 Colar QR para melhores resultados');
+    }
+  } catch(e) {
+    btn.textContent='📷 Iniciar câmara'; btn.disabled=false; btn.onclick=startCamera;
+    showToast('error','Câmara indisponível','Permite o acesso em 🔒 → Câmara → Permitir\nOu usa o modo 📋 Colar QR');
+  }
+}
+
+function stopCamera() {
+  scanning=false;
+  if(scanTimer){clearInterval(scanTimer);scanTimer=null;}
+  if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;}
+  const video=document.getElementById('cam-video');
+  video.style.display='none'; video.srcObject=null;
+  document.getElementById('cam-ph').style.display='flex';
+  document.getElementById('cam-overlay').classList.remove('show');
+  document.getElementById('cam-hint').style.display='none';
+  const btn=document.getElementById('cam-btn');
+  btn.textContent='📷 Iniciar câmara'; btn.onclick=startCamera;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// QR Result
+// ══════════════════════════════════════════════════════════════════════════════
+let lastQR='',lastQRt=0;
+async function handleQRResult(raw) {
+  const now=Date.now();
+  if(raw===lastQR&&now-lastQRt<3000)return;
+  lastQR=raw;lastQRt=now;
+  if(scanning)stopCamera();
+  const p=parseQR(raw);
+  if(!p||(p.total===0&&!p.nif)){showToast('error','QR inválido','Não parece ser uma fatura portuguesa AT.');return;}
+  // Lookup NIF (online only)
+  if(p.nif&&navigator.onLine){
+    showToast('success','QR lido!','A identificar empresa...');
+    try{
+      const r=await fetch(`https://www.nif.pt/?json=1&q=${p.nif}&key=demo`);
+      const d=await r.json();
+      if(d?.result==='success'&&d.records?.[p.nif]?.title)p.name=d.records[p.nif].title;
+    }catch(e){}
+  }
+  currentParsed=p;
+  showParsedPreview(p);
+}
+
+function processPasted() {
+  const raw=document.getElementById('paste-qr-text').value.trim();
+  if(!raw){showToast('error','Vazio','Cola o texto do QR code primeiro.');return;}
+  handleQRResult(raw);
+}
+
+function showParsedPreview(p) {
+  document.getElementById('parsed-fields').innerHTML=[
+    ['Empresa',p.name||'—'],['NIF',p.nif||'—'],
+    ['Data',p.date?formatDate(p.date):'—'],['Total',`${fmt(p.total)} €`],
+    ['IVA',`${fmt(p.iva)} €`],['ATCUD',p.atcud||'—'],
+  ].map(([k,v])=>`<div class="field"><div class="k">${k}</div><div class="v" style="color:${k==='Empresa'?'var(--accent)':'var(--text)'}">${v}</div></div>`).join('');
+  const pr=document.getElementById('parsed-preview');
+  pr.classList.add('show');
+  pr.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+async function confirmExpense() {
+  if(!currentParsed)return;
+  const cat=getCat('p-cat','p-outro');
+  const e={id:Date.now(),name:currentParsed.name,nif:currentParsed.nif,date:currentParsed.date,total:currentParsed.total,iva:currentParsed.iva,category:cat,docType:currentParsed.docType,atcud:currentParsed.atcud,source:'qr'};
+  await IDB.add(e); expenses.unshift(e);
+  currentParsed=null; cancelParsed();
+  showToast('success','Guardado!',`${cat} · ${fmt(e.total)} €`); render();
+}
+
+function cancelParsed() {
+  currentParsed=null;
+  document.getElementById('parsed-preview').classList.remove('show');
+  document.getElementById('parsed-fields').innerHTML='';
+  const w=document.getElementById('p-outro-wrap'); if(w)w.style.display='none';
+  const i=document.getElementById('p-outro'); if(i)i.value='';
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Manual
+// ══════════════════════════════════════════════════════════════════════════════
+async function addManual() {
+  const name=document.getElementById('m-name').value.trim();
+  const total=parseFloat(document.getElementById('m-total').value);
+  const iva=parseFloat(document.getElementById('m-iva').value)||0;
+  const date=document.getElementById('m-date').value;
+  const cat=getCat('m-cat','m-outro');
+  const nif=document.getElementById('m-nif').value.trim();
+  if(!name){showToast('error','Obrigatório','Preenche o nome do fornecedor.');return;}
+  if(isNaN(total)||total<=0){showToast('error','Inválido','Introduz um valor total válido.');return;}
+  if(!date){showToast('error','Obrigatório','Seleciona a data.');return;}
+  const e={id:Date.now(),name,nif,date,total,iva,category:cat,source:'manual'};
+  await IDB.add(e); expenses.unshift(e);
+  showToast('success','Adicionada!',`${cat} · ${fmt(total)} €`);
+  ['m-name','m-total','m-iva','m-nif','m-outro'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('m-outro-wrap').style.display='none';
+  render();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// UI Helpers
+// ══════════════════════════════════════════════════════════════════════════════
+function toggleOutro(id,val) {
+  const w=document.getElementById(id+'-wrap'); if(!w)return;
+  w.style.display=val==='📦 Outro'?'block':'none';
+  if(val!=='📦 Outro'){const el=document.getElementById(id);if(el)el.value='';}
+}
+function getCat(selId,otherId) {
+  const v=document.getElementById(selId).value;
+  if(v==='📦 Outro'){const d=document.getElementById(otherId)?.value.trim();return d?`Outro: ${d}`:'Outro';}
+  return v.replace(/^.+\s/,''); // strip emoji
+}
+function setMode(mode) {
+  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
+  document.querySelectorAll('.scan-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+mode).classList.add('active');
+  if(mode!=='camera'&&scanning)stopCamera();
+  cancelParsed();
+  if(mode==='paste')setTimeout(()=>document.getElementById('paste-qr-text')?.focus(),100);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Export
+// ══════════════════════════════════════════════════════════════════════════════
+function openExport(){document.getElementById('export-modal').classList.add('show');}
+function closeExport(){document.getElementById('export-modal').classList.remove('show');}
+document.getElementById('export-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeExport();});
+
+function getExpData() {
+  const p=document.getElementById('exp-period').value;
+  if(p==='all')return expenses;
+  if(p==='year')return expenses.filter(e=>e.date&&new Date(e.date).getFullYear()===currentYear);
+  return expenses.filter(e=>{if(!e.date)return false;const d=new Date(e.date);return d.getMonth()===currentMonth&&d.getFullYear()===currentYear;});
+}
+
+function doExport(fmt2) {
+  const data=getExpData();
+  if(!data.length){showToast('error','Sem dados','Nenhuma despesa no período.');return;}
+  const p=document.getElementById('exp-period').value;
+  const label=p==='month'?`${MONTHS[currentMonth]}_${currentYear}`:p==='year'?`${currentYear}`:'todas';
+  let content,mime,ext;
+  if(fmt2==='csv'){
+    const H=['Data','Empresa','Categoria','Total (€)','IVA (€)','Tipo Doc','ATCUD','Fonte'];
+    const R=data.map(e=>[e.date||'',`"${(e.name||'').replace(/"/g,'""')}"`,e.category||'',(e.total||0).toFixed(2).replace('.',','),(e.iva||0).toFixed(2).replace('.',','),e.docType||'',e.atcud||'',e.source==='qr'?'QR':'Manual']);
+    content='\uFEFF'+[H,...R].map(r=>r.join(';')).join('\r\n');mime='text/csv;charset=utf-8';ext='csv';
+  } else {
+    content=JSON.stringify({exportDate:new Date().toISOString(),period:label,total:data.length,despesas:data},null,2);mime='application/json';ext='json';
+  }
+  const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([content],{type:mime})),download:`despesas_${label}.${ext}`});
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  closeExport();showToast('success','Exportado!',`${data.length} despesa(s) · ${ext.toUpperCase()}`);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Render
+// ══════════════════════════════════════════════════════════════════════════════
+function getMonthExp(){
+  return expenses.filter(e=>{if(!e.date)return false;const d=new Date(e.date);return d.getMonth()===currentMonth&&d.getFullYear()===currentYear;});
+}
+
+function baseKey(cat){return(cat||'Outro').startsWith('Outro:')?'Outro':(cat||'Outro');}
+
+function render() {
+  const me=getMonthExp();
+  const fi=currentFilter==='all'?me:me.filter(e=>e.category===currentFilter||(e.category||'').startsWith(currentFilter+':'));
+  document.getElementById('stat-total').innerHTML=`${fmt(me.reduce((s,e)=>s+e.total,0))} <span>€</span>`;
+  document.getElementById('stat-count').textContent=me.length;
+  document.getElementById('stat-iva').innerHTML=`${fmt(me.reduce((s,e)=>s+e.iva,0))} <span>€</span>`;
+  document.getElementById('month-label').textContent=`${MONTHS[currentMonth]} ${currentYear}`;
+
+  // Breakdown
+  const cats={};
+  me.forEach(e=>{const k=e.category||'Outro';cats[k]=(cats[k]||0)+e.total;});
+  const ce=Object.entries(cats).sort((a,b)=>b[1]-a[1]);
+  const bd=document.getElementById('breakdown-section');
+  if(ce.length){
+    bd.classList.add('show');
+    const max=ce[0][1];
+    document.getElementById('bd-bars').innerHTML=ce.map(([cat,amt])=>`
+      <div><div class="bd-bar-hdr"><span class="cn">${EMOJI[baseKey(cat)]||'📦'} ${cat}</span><span class="ca">${fmt(amt)} €</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(amt/max*100).toFixed(1)}%;background:${COLORS[baseKey(cat)]||'#888'}"></div></div></div>
+    `).join('');
+  }else bd.classList.remove('show');
+
+  // Filters
+  const ac=[...new Set(me.map(e=>e.category))];
+  document.getElementById('filter-row').innerHTML=
+    `<button class="filter-chip${currentFilter==='all'?' active':''}" onclick="setFilter('all')">Todas</button>`+
+    ac.map(c=>`<button class="filter-chip${currentFilter===c?' active':''}" onclick="setFilter(${JSON.stringify(c)})">${EMOJI[baseKey(c)]||'📦'} ${c}</button>`).join('');
+
+  // List
+  const list=document.getElementById('expense-list');
+  if(!fi.length){
+    list.innerHTML=`<div class="empty-state"><div class="icon">${me.length===0?'🧾':'🔍'}</div><p>${me.length===0?'Nenhuma despesa registada.<br>Digitaliza o QR de uma fatura.':'Nenhuma despesa na categoria selecionada.'}</p></div>`;
+    return;
+  }
+  list.innerHTML=fi.map(e=>`
+    <div class="expense-item">
+      <div class="expense-cat" style="background:${COLORS[baseKey(e.category)]||'#888'}22;color:${COLORS[baseKey(e.category)]||'#888'}">${EMOJI[baseKey(e.category)]||'📦'}</div>
+      <div class="expense-info">
+        <div class="name">${e.name}</div>
+        <div class="meta">${formatDate(e.date)} · ${e.category||''}${e.nif?' · NIF '+e.nif:''}${e.source==='qr'?' · <span style="color:var(--accent2)">QR</span>':''}</div>
+      </div>
+      <div class="expense-right">
+        <div class="amount">${fmt(e.total)} €</div>
+        ${e.iva>0?`<div class="iva">IVA ${fmt(e.iva)} €</div>`:''}
+      </div>
+      <button class="del-btn" onclick="delExp(${e.id})">✕</button>
+    </div>`).join('');
+}
+
+async function delExp(id){await IDB.del(id);expenses=expenses.filter(e=>e.id!==id);render();}
+function setFilter(cat){currentFilter=cat;render();}
+document.getElementById('prev-month').onclick=()=>{currentMonth--;if(currentMonth<0){currentMonth=11;currentYear--;}currentFilter='all';render();};
+document.getElementById('next-month').onclick=()=>{currentMonth++;if(currentMonth>11){currentMonth=0;currentYear++;}currentFilter='all';render();};
+
+function fmt(n){return(n||0).toFixed(2).replace('.',',');}
+function formatDate(d){if(!d)return'—';return new Date(d+'T12:00:00').toLocaleDateString('pt-PT',{day:'2-digit',month:'short',year:'numeric'});}
+
+let toastT;
+function showToast(type,title,sub){
+  const t=document.getElementById('toast');
+  document.getElementById('toast-icon').textContent=type==='success'?'✅':type==='error'?'❌':'ℹ️';
+  document.getElementById('toast-title').textContent=title;
+  document.getElementById('toast-sub').textContent=sub;
+  t.className=`toast ${type} show`;
+  clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+// Offline banner
+window.addEventListener('online', ()=>{document.getElementById('offline-banner').style.display='none';});
+window.addEventListener('offline',()=>{document.getElementById('offline-banner').style.display='block';});
+if(!navigator.onLine) document.getElementById('offline-banner').style.display='block';
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Init
+// ══════════════════════════════════════════════════════════════════════════════
+document.getElementById('m-date').value=new Date().toISOString().split('T')[0];
+
+IDB.open().then(async()=>{
+  expenses=await IDB.all();
+  render();
+}).catch(()=>showToast('error','Erro BD','Não foi possível abrir a base de dados.'));
+</script>
+</body>
+</html>
